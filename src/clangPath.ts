@@ -9,7 +9,7 @@ export function getBinPath(binname: string) {
     return binPathCache[binname];
   }
 
-  for (const binNameToSearch of correctBinname(binname)) {
+  for (const binNameToSearch of platformBinName(binname)) {
     // nwscript-formatter.executable has a valid absolute path
     if (existsSync(binNameToSearch)) {
       binPathCache[binname] = binNameToSearch;
@@ -36,7 +36,7 @@ export function getBinPath(binname: string) {
   return binname;
 }
 
-function correctBinname(binname: string): string[] {
+function platformBinName(binname: string) {
   if (process.platform === "win32") {
     return [binname + ".exe", binname + ".bat", binname + ".cmd", binname];
   } else {
