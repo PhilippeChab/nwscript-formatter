@@ -1,7 +1,6 @@
 # README
 
-NWScript-Formatter is a Visual Studio Code extension to easily format NWScript code. It uses [clang-format](https://clang.llvm.org/docs/ClangFormat.html), a formatter that was originally created for C.
-Since NWScript was built on top of C, `clang-format` does a pretty good job.
+NWScript-Formatter is a Visual Studio Code extension to easily format NWScript code. It uses [clang-format](https://clang.llvm.org/docs/ClangFormat.html), a formatter that was originally created for C. Since NWScript was built on top of C, `clang-format` does a pretty good job.
 
 The clang executable's version needs to be higher than 3.8.
 
