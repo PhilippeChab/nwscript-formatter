@@ -1,7 +1,5 @@
-"use strict";
-
-import fs = require("fs");
-import path = require("path");
+import { existsSync } from "fs";
+import { join, delimiter } from "path";
 
 // This must be the clang executable
 const binPathCache: { [bin: string]: string } = {};
@@ -13,18 +11,18 @@ export function getBinPath(binname: string) {
 
   for (const binNameToSearch of correctBinname(binname)) {
     // nwscript-formatter.executable has a valid absolute path
-    if (fs.existsSync(binNameToSearch)) {
+    if (existsSync(binNameToSearch)) {
       binPathCache[binname] = binNameToSearch;
       return binNameToSearch;
     }
 
     if (process.env["PATH"]) {
-      const pathparts = process.env["PATH"].split(path.delimiter);
+      const pathparts = process.env["PATH"].split(delimiter);
 
       for (let i = 0; i < pathparts.length; i++) {
-        const binpath = path.join(pathparts[i], binNameToSearch);
+        const binpath = join(pathparts[i], binNameToSearch);
 
-        if (fs.existsSync(binpath)) {
+        if (existsSync(binpath)) {
           binPathCache[binname] = binpath;
           return binpath;
         }
@@ -32,8 +30,9 @@ export function getBinPath(binname: string) {
     }
   }
 
-  // Else return the binary name directly (this will likely always fail downstream)
+  // If everything else fails
   binPathCache[binname] = binname;
+
   return binname;
 }
 
