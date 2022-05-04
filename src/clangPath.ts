@@ -4,42 +4,41 @@ import { join, delimiter } from "path";
 // This must be the clang executable
 const binPathCache: { [bin: string]: string } = {};
 
-export function getBinPath(binname: string) {
-  if (binPathCache[binname]) {
-    return binPathCache[binname];
+export function getBinPath(binName: string) {
+  if (binPathCache[binName]) {
+    return binPathCache[binName];
   }
 
-  for (const binNameToSearch of platformBinName(binname)) {
+  for (const binNameToSearch of platformBinName(binName)) {
     // nwscript-formatter.executable has a valid absolute path
     if (existsSync(binNameToSearch)) {
-      binPathCache[binname] = binNameToSearch;
+      binPathCache[binName] = binNameToSearch;
       return binNameToSearch;
     }
 
     if (process.env["PATH"]) {
-      const pathparts = process.env["PATH"].split(delimiter);
+      const pathParts = process.env["PATH"].split(delimiter);
 
-      for (let i = 0; i < pathparts.length; i++) {
-        const binpath = join(pathparts[i], binNameToSearch);
+      for (let i = 0; i < pathParts.length; i++) {
+        const binPath = join(pathParts[i], binNameToSearch);
 
-        if (existsSync(binpath)) {
-          binPathCache[binname] = binpath;
-          return binpath;
+        if (existsSync(binPath)) {
+          binPathCache[binName] = binPath;
+          return binPath;
         }
       }
     }
   }
 
   // If everything else fails
-  binPathCache[binname] = binname;
-
-  return binname;
+  binPathCache[binName] = binName;
+  return binName;
 }
 
-function platformBinName(binname: string) {
+function platformBinName(binName: string) {
   if (process.platform === "win32") {
-    return [binname + ".exe", binname + ".bat", binname + ".cmd", binname];
+    return [binName + ".exe", binName + ".bat", binName + ".cmd", binName];
   } else {
-    return [binname];
+    return [binName];
   }
 }
