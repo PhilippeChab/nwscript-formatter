@@ -1,14 +1,28 @@
-import * as vscode from "vscode";
-import cp = require("child_process");
-import path = require("path");
-import sax = require("sax");
+import * as sax from "sax";
+import { spawn } from "child_process";
+import { dirname } from "path";
+import { window, workspace, languages, TextEdit, Range } from "vscode";
 
-import { getBinPath } from "./clangPath";
+import type {
+  DocumentFormattingEditProvider,
+  DocumentRangeFormattingEditProvider,
+  TextDocument,
+  FormattingOptions,
+  CancellationToken,
+  ExtensionContext,
+} from "vscode";
 
-export const outputChannel =
-  vscode.window.createOutputChannel("NWScript-Formatter");
+import getBinPath from "./clangPath";
+import byteToOffset from "./byteToOffset";
 
-function getPlatformString() {
+export const outputChannel = window.createOutputChannel("NWScript-Formatter");
+
+const defaultConfiguration = {
+  executable: "nwscript-formatter",
+  style: "file",
+};
+
+const getPlatformString = () => {
   switch (process.platform) {
     case "win32":
       return "windows";
@@ -19,84 +33,119 @@ function getPlatformString() {
   }
 
   return "unknown";
-}
+};
 
 export class NWScriptDocumentFormattingEditProvider
   implements
-    vscode.DocumentFormattingEditProvider,
-    vscode.DocumentRangeFormattingEditProvider
+    DocumentFormattingEditProvider,
+    DocumentRangeFormattingEditProvider
 {
-  public formatDocument(
-    document: vscode.TextDocument
-  ): Thenable<vscode.TextEdit[] | null> {
-    return this.doFormatDocument(document, null, null, null);
-  }
-
   public provideDocumentFormattingEdits(
-    document: vscode.TextDocument,
-    options: vscode.FormattingOptions,
-    token: vscode.CancellationToken
-  ): Thenable<vscode.TextEdit[] | null> {
+    document: TextDocument,
+    options: FormattingOptions,
+    token: CancellationToken
+  ): Thenable<TextEdit[] | null> {
     return this.doFormatDocument(document, null, options, token);
   }
 
   public provideDocumentRangeFormattingEdits(
-    document: vscode.TextDocument,
-    range: vscode.Range,
-    options: vscode.FormattingOptions,
-    token: vscode.CancellationToken
-  ): Thenable<vscode.TextEdit[] | null> {
+    document: TextDocument,
+    range: Range,
+    options: FormattingOptions,
+    token: CancellationToken
+  ): Thenable<TextEdit[] | null> {
     return this.doFormatDocument(document, range, options, token);
   }
 
+  private getWorkspaceRootPath(): string | undefined {
+    return workspace.workspaceFolders?.slice(0, 1)?.shift()?.name;
+  }
+
+  private getWorkspaceFolder(): string | undefined {
+    const editor = window.activeTextEditor;
+    if (!editor) {
+      window.showErrorMessage(
+        "Unable to get the location of nwscript-formatter executable - no active workspace selected."
+      );
+      return undefined;
+    }
+
+    if (!workspace.workspaceFolders) {
+      window.showErrorMessage(
+        "Unable to get the location of nwscript-formatter executable - no workspaces available."
+      );
+      return undefined;
+    }
+
+    const currentDocumentUri = editor.document.uri;
+    let workspacePath = workspace.getWorkspaceFolder(currentDocumentUri);
+    if (!workspacePath) {
+      const fallbackWorkspace = workspace.workspaceFolders[0];
+      window.showWarningMessage(
+        `Unable to deduce the location of nwscript-formatter executable for file outside the workspace - expanding \${workspaceFolder} to "${fallbackWorkspace.name}" path.`
+      );
+      workspacePath = fallbackWorkspace;
+    }
+
+    return workspacePath.uri.path;
+  }
+
+  private getExecutablePath() {
+    const platform = getPlatformString();
+    const config = workspace.getConfiguration("nwscript-formatter");
+
+    const platformExecPath = config.get<string>("executable." + platform);
+    const defaultExecPath = config.get<string>("executable");
+    const execPath = platformExecPath || defaultExecPath;
+
+    if (!execPath) {
+      return defaultConfiguration.executable;
+    }
+
+    const workspaceRootPath = this.getWorkspaceRootPath();
+    const workspaceFolder = this.getWorkspaceFolder();
+    if (workspaceRootPath && workspaceFolder) {
+      return execPath
+        .replace(/\${workspaceRoot}/g, workspaceRootPath)
+        .replace(/\${workspaceFolder}/g, workspaceFolder)
+        .replace(/\${cwd}/g, process.cwd())
+        .replace(/\${env\.([^}]+)}/g, (_: string, envName: string) => {
+          return process.env[envName] || "";
+        });
+    } else {
+      return execPath;
+    }
+  }
+
+  private getStyle() {
+    let ret = workspace
+      .getConfiguration("nwscript-formatter")
+      .get<string>(`nwscript-formatter.style`);
+    if (ret?.trim()) {
+      return ret.trim();
+    }
+
+    ret = workspace.getConfiguration("nwscript-formatter").get<string>("style");
+    if (ret && ret.trim()) {
+      return ret.trim();
+    } else {
+      return defaultConfiguration.style;
+    }
+  }
+
   private getEdits(
-    document: vscode.TextDocument,
+    document: TextDocument,
     xml: string,
     codeContent: string
-  ): Thenable<vscode.TextEdit[] | null> {
+  ): Thenable<TextEdit[] | null> {
     return new Promise((resolve, reject) => {
-      const options = {
+      const parser = sax.parser(true, {
         trim: false,
         normalize: false,
-        loose: true,
-      };
-      const parser = sax.parser(true, options);
+      });
 
-      const edits: vscode.TextEdit[] = [];
+      const edits: TextEdit[] = [];
       let currentEdit: { length: number; offset: number; text: string } | null;
-
-      const codeBuffer = new Buffer(codeContent);
-      // encoding position cache
-      const codeByteOffsetCache = {
-        byte: 0,
-        offset: 0,
-      };
-      const byteToOffset = function (editInfo: {
-        length: number;
-        offset: number;
-      }) {
-        let offset = editInfo.offset;
-        let length = editInfo.length;
-
-        if (offset >= codeByteOffsetCache.byte) {
-          editInfo.offset =
-            codeByteOffsetCache.offset +
-            codeBuffer.slice(codeByteOffsetCache.byte, offset).toString("utf8")
-              .length;
-          codeByteOffsetCache.byte = offset;
-          codeByteOffsetCache.offset = editInfo.offset;
-        } else {
-          editInfo.offset = codeBuffer.slice(0, offset).toString("utf8").length;
-          codeByteOffsetCache.byte = offset;
-          codeByteOffsetCache.offset = editInfo.offset;
-        }
-
-        editInfo.length = codeBuffer
-          .slice(offset, offset + length)
-          .toString("utf8").length;
-
-        return editInfo;
-      };
 
       parser.onerror = (err) => {
         reject(err.message);
@@ -117,7 +166,7 @@ export class NWScriptDocumentFormattingEditProvider
               offset: parseInt(tag.attributes["offset"].toString()),
               text: "",
             };
-            byteToOffset(currentEdit);
+            byteToOffset(codeContent, currentEdit);
             break;
 
           default:
@@ -143,9 +192,9 @@ export class NWScriptDocumentFormattingEditProvider
           currentEdit.offset + currentEdit.length
         );
 
-        const editRange = new vscode.Range(start, end);
+        const editRange = new Range(start, end);
 
-        edits.push(new vscode.TextEdit(editRange, currentEdit.text));
+        edits.push(new TextEdit(editRange, currentEdit.text));
         currentEdit = null;
       };
 
@@ -158,84 +207,12 @@ export class NWScriptDocumentFormattingEditProvider
     });
   }
 
-  private getStyle() {
-    let ret = vscode.workspace
-      .getConfiguration("nwscript-formatter")
-      .get<string>(`nwscript-formatter.style`);
-    if (ret?.trim()) {
-      return ret.trim();
-    }
-
-    ret = vscode.workspace
-      .getConfiguration("nwscript-formatter")
-      .get<string>("style");
-    if (ret && ret.trim()) {
-      return ret.trim();
-    } else {
-      return this.defaultConfigure.style;
-    }
-  }
-
-  private getExecutablePath() {
-    const platform = getPlatformString();
-    const config = vscode.workspace.getConfiguration("nwscript-formatter");
-
-    const platformExecPath = config.get<string>("executable." + platform);
-    const defaultExecPath = config.get<string>("executable");
-    const execPath = platformExecPath || defaultExecPath;
-
-    if (!execPath) {
-      return this.defaultConfigure.executable;
-    }
-
-    // replace placeholders, if present
-    return execPath
-      .replace(/\${workspaceRoot}/g, this.getWorkspaceRootPath()!)
-      .replace(/\${workspaceFolder}/g, this.getWorkspaceFolder()!)
-      .replace(/\${cwd}/g, process.cwd())
-      .replace(/\${env\.([^}]+)}/g, (sub: string, envName: string) => {
-        return process.env[envName]!;
-      });
-  }
-
-  private getWorkspaceRootPath(): string | undefined {
-    return vscode.workspace.workspaceFolders?.slice(0, 1)?.shift()?.name;
-  }
-
-  private getWorkspaceFolder(): string | undefined {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      vscode.window.showErrorMessage(
-        "Unable to get the location of nwscript-formatter executable - no active workspace selected."
-      );
-      return undefined;
-    }
-
-    if (!vscode.workspace.workspaceFolders) {
-      vscode.window.showErrorMessage(
-        "Unable to get the location of nwscript-formatter executable - no workspaces available."
-      );
-      return undefined;
-    }
-
-    const currentDocumentUri = editor.document.uri;
-    let workspacePath = vscode.workspace.getWorkspaceFolder(currentDocumentUri);
-    if (!workspacePath) {
-      const fallbackWorkspace = vscode.workspace.workspaceFolders[0];
-      vscode.window.showWarningMessage(
-        `Unable to deduce the location of nwscript-formatter executable for file outside the workspace - expanding \${workspaceFolder} to "${fallbackWorkspace.name}" path.`
-      );
-      workspacePath = fallbackWorkspace;
-    }
-    return workspacePath.uri.path;
-  }
-
   private doFormatDocument(
-    document: vscode.TextDocument,
-    range: vscode.Range | null,
-    options: vscode.FormattingOptions | null,
-    token: vscode.CancellationToken | null
-  ): Thenable<vscode.TextEdit[] | null> {
+    document: TextDocument,
+    range: Range | null,
+    options: FormattingOptions | null,
+    token: CancellationToken | null
+  ): Thenable<TextEdit[] | null> {
     return new Promise((resolve, reject) => {
       const formatCommandBinPath = getBinPath(this.getExecutablePath());
       const codeContent = document.getText();
@@ -259,21 +236,22 @@ export class NWScriptDocumentFormattingEditProvider
 
       let workingPath = this.getWorkspaceRootPath();
       if (!document.isUntitled || !workingPath) {
-        workingPath = path.dirname(document.fileName);
+        workingPath = dirname(document.fileName);
       }
 
       let stdout = "";
       let stderr = "";
-      const child = cp.spawn(formatCommandBinPath, formatArgs, {
+      const child = spawn(formatCommandBinPath, formatArgs, {
         cwd: workingPath,
       });
+
       child.stdin.end(codeContent);
       child.stdout.on("data", (chunk) => (stdout += chunk));
       child.stderr.on("data", (chunk) => (stderr += chunk));
       child.on("error", (err) => {
         if (err && (<any>err).code === "ENOENT") {
-          vscode.window.showInformationMessage(
-            `The ${formatCommandBinPath} command is not available.  Please check your nwscript-formatter.executable user setting and ensure it is installed.`
+          window.showInformationMessage(
+            `The ${formatCommandBinPath} command is not available.  Please check your nwscript-formatter.executable user setting and ensure clang executable is installed.`
           );
           return resolve(null);
         }
@@ -306,24 +284,16 @@ export class NWScriptDocumentFormattingEditProvider
       }
     });
   }
-
-  private defaultConfigure = {
-    executable: "nwscript-formatter",
-    style: "file",
-  };
 }
 
-export function activate(ctx: vscode.ExtensionContext): void {
+export function activate(ctx: ExtensionContext): void {
   const formatter = new NWScriptDocumentFormattingEditProvider();
   const mode = { language: "nwscript", scheme: "file" };
 
   ctx.subscriptions.push(
-    vscode.languages.registerDocumentRangeFormattingEditProvider(
-      mode,
-      formatter
-    )
+    languages.registerDocumentRangeFormattingEditProvider(mode, formatter)
   );
   ctx.subscriptions.push(
-    vscode.languages.registerDocumentFormattingEditProvider(mode, formatter)
+    languages.registerDocumentFormattingEditProvider(mode, formatter)
   );
 }
