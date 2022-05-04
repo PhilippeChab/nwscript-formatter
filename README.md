@@ -57,3 +57,7 @@ Change your vscode settings, you can specify `clang-format` [rules](https://clan
 ## Known issues
 
 - The formatter has difficulties with long lines of concatenated strings. I recommend setting the `ColumnLimit` to a high number in order to avoid line breaks.
+
+## Credits
+
+Most of the code comes from https://github.com/xaverh/vscode-clang-format-provider.
