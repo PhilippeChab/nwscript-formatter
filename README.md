@@ -2,7 +2,10 @@
 
 NWScript-Formatter is a Visual Studio Code extension to easily format NWScript code. It uses [clang-format](https://clang.llvm.org/docs/ClangFormat.html), a formatter that was originally created for C. Since NWScript was built on top of C, `clang-format` does a pretty good job.
 
-The clang executable's version needs to be higher than 3.8.
+## Dependencies
+
+- clang-format version 3.8 or higher.
+- [nwscript](https://marketplace.visualstudio.com/items?itemName=glorwinger.nwscript) language syntax for vscode.
 
 ## Usage
 
@@ -49,7 +52,20 @@ In your vscode settings, you can specify `clang-format` [rules](https://clang.ll
 
 ```
 {
-    "nwscript-formatter.style": "{'BasedOnStyle':'Google','AlignTrailingComments':true,'AlignConsecutiveAssignments':true,'ColumnLimit':250,'BreakBeforeBraces':'Allman','AlignEscapedNewlinesLeft':true,'AlwaysBreakBeforeMultilineStrings':true,'MaxEmptyLinesToKeep':1,'TabWidth':4,'IndentWidth':4,'UseTab':'Always'}"
+    "nwscript-formatter.style": {
+      BasedOnStyle: "Google",
+      AlignTrailingComments: true,
+      AlignConsecutiveAssignments: true,
+      ColumnLimit: 250,
+      BreakBeforeBraces: "Allman",
+      AlignEscapedNewlinesLeft: true,
+      AlwaysBreakBeforeMultilineStrings: true,
+      MaxEmptyLinesToKeep: 1,
+      TabWidth: 4,
+      IndentWidth: 4,
+      UseTab: "Always",
+      ignoredPaths: [],
+    }
 }
 ```
 
@@ -59,4 +75,4 @@ In your vscode settings, you can specify `clang-format` [rules](https://clang.ll
 
 ## Credits
 
-Most of the code comes from https://github.com/xaverh/vscode-clang-format-provider.
+The initial code structure comes from https://github.com/xaverh/vscode-clang-format-provider.

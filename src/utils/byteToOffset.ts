@@ -3,20 +3,15 @@ const codeByteOffsetCache = {
   offset: 0,
 };
 
-export default (
-  codeContent: string,
-  editInfo: { length: number; offset: number }
-) => {
+export default (codeContent: string, editInfo: { length: number; offset: number }) => {
   const codeBuffer = new Buffer(codeContent);
-  // encoding position cache
-  let offset = editInfo.offset;
-  let length = editInfo.length;
+
+  // Encoding position cache
+  const offset = editInfo.offset;
+  const length = editInfo.length;
 
   if (offset >= codeByteOffsetCache.byte) {
-    editInfo.offset =
-      codeByteOffsetCache.offset +
-      codeBuffer.slice(codeByteOffsetCache.byte, offset).toString("utf8")
-        .length;
+    editInfo.offset = codeByteOffsetCache.offset + codeBuffer.slice(codeByteOffsetCache.byte, offset).toString("utf8").length;
     codeByteOffsetCache.byte = offset;
     codeByteOffsetCache.offset = editInfo.offset;
   } else {
@@ -25,9 +20,7 @@ export default (
     codeByteOffsetCache.offset = editInfo.offset;
   }
 
-  editInfo.length = codeBuffer
-    .slice(offset, offset + length)
-    .toString("utf8").length;
+  editInfo.length = codeBuffer.slice(offset, offset + length).toString("utf8").length;
 
   return editInfo;
 };

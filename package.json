@@ -8,7 +8,7 @@
     "url": "https://github.com/PhilippeChab/nwscript-formatter"
   },
   "license": "MIT",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "publisher": "PhilippeChab",
   "engines": {
     "vscode": "^1.66.0"
@@ -32,19 +32,31 @@
       "type": "object",
       "title": "NWScript Formatter Configuration",
       "properties": {
-        "nwscript-formatter.executable": {
-          "type": "string",
-          "default": "clang-format",
-          "description": "Clang executable path."
-        },
-        "nwscript-formatter.enable": {
+        "nwscript-formatter.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enables formatting for NWScript."
         },
-        "nwscript-formatter.style": {
+        "nwscript-formatter.executable": {
           "type": "string",
-          "default": "{'BasedOnStyle':'Google','AlignTrailingComments':true,'AlignConsecutiveAssignments':true,'ColumnLimit':250,'BreakBeforeBraces':'Allman','AlignEscapedNewlinesLeft':true,'AlwaysBreakBeforeMultilineStrings':true,'MaxEmptyLinesToKeep':1,'TabWidth':4,'IndentWidth':4,'UseTab':'Always'}",
+          "default": "clang-format",
+          "description": "Clang's executable path."
+        },
+        "nwscript-formatter.style": {
+          "type": "object",
+          "default": {
+            "BasedOnStyle": "Google",
+            "AlignTrailingComments": true,
+            "AlignConsecutiveAssignments": true,
+            "ColumnLimit": 250,
+            "BreakBeforeBraces": "Allman",
+            "AlignEscapedNewlinesLeft": true,
+            "AlwaysBreakBeforeMultilineStrings": true,
+            "MaxEmptyLinesToKeep": 1,
+            "TabWidth": 4,
+            "IndentWidth": 4,
+            "UseTab": "Always"
+          },
           "description": "Style for the formatter."
         },
         "nwscript-formatter.ignoredPaths": {

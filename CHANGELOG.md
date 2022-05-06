@@ -11,3 +11,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [1.1.0]
 
 - New setting `ignoredPaths` to ignore specific paths - folders or files - when formatting.
+
+## [1.2.0]
+
+**_BREAKING CHANGE_**
+
+- The setting style is now an object instead of a stringified object.
