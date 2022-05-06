@@ -8,7 +8,7 @@
     "url": "https://github.com/PhilippeChab/nwscript-formatter"
   },
   "license": "MIT",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "PhilippeChab",
   "engines": {
     "vscode": "^1.66.0"
@@ -17,7 +17,10 @@
     "Formatters"
   ],
   "keywords": [
-    "NWScript"
+    "NWScript",
+    "Neverwinter Script",
+    "Neverwinter Nights",
+    "Neverwinter Nights: EE"
   ],
   "activationEvents": [
     "onLanguage:nwscript"
@@ -41,8 +44,16 @@
         },
         "nwscript-formatter.style": {
           "type": "string",
-          "default": "",
+          "default": "{'BasedOnStyle':'Google','AlignTrailingComments':true,'AlignConsecutiveAssignments':true,'ColumnLimit':250,'BreakBeforeBraces':'Allman','AlignEscapedNewlinesLeft':true,'AlwaysBreakBeforeMultilineStrings':true,'MaxEmptyLinesToKeep':1,'TabWidth':4,'IndentWidth':4,'UseTab':'Always'}",
           "description": "Style for the formatter."
+        },
+        "nwscript-formatter.ignoredPaths": {
+          "type": "array",
+          "default": [],
+          "description": "Specific relative paths to ignore. May be module or file paths.",
+          "items": {
+            "type": "string"
+          }
         }
       }
     }

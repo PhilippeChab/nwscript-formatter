@@ -1,6 +1,7 @@
 import * as sax from "sax";
 import { spawn } from "child_process";
-import { dirname } from "path";
+import { dirname, join } from "path";
+import { existsSync, lstatSync } from "fs";
 import { window, workspace, languages, TextEdit, Range } from "vscode";
 
 import type {
@@ -58,7 +59,7 @@ export class NWScriptDocumentFormattingEditProvider
   }
 
   private getWorkspaceRootPath(): string | undefined {
-    return workspace.workspaceFolders?.slice(0, 1)?.shift()?.name;
+    return workspace.rootPath;
   }
 
   private getWorkspaceFolder(): string | undefined {
@@ -118,16 +119,12 @@ export class NWScriptDocumentFormattingEditProvider
   }
 
   private getStyle() {
-    let ret = workspace
+    const style = workspace
       .getConfiguration("nwscript-formatter")
-      .get<string>(`nwscript-formatter.style`);
-    if (ret?.trim()) {
-      return ret.trim();
-    }
+      .get<string>("style");
 
-    ret = workspace.getConfiguration("nwscript-formatter").get<string>("style");
-    if (ret && ret.trim()) {
-      return ret.trim();
+    if (style && style.trim()) {
+      return style.trim();
     } else {
       return defaultConfiguration.style;
     }
@@ -214,6 +211,37 @@ export class NWScriptDocumentFormattingEditProvider
     token: CancellationToken | null
   ): Thenable<TextEdit[] | null> {
     return new Promise((resolve, reject) => {
+      const rootPath = this.getWorkspaceRootPath();
+      let workingPath = rootPath;
+      if (!document.isUntitled || !rootPath) {
+        workingPath = dirname(document.fileName);
+      }
+
+      if (rootPath) {
+        const ignoredPaths = workspace
+          .getConfiguration("nwscript-formatter")
+          .get<Array<string>>("ignoredPaths");
+        const isFileIgnored = ignoredPaths?.some((ignoredSubPath) => {
+          const path = join(rootPath, ignoredSubPath);
+
+          if (existsSync(path)) {
+            const currentFilePath = document.uri.fsPath;
+
+            if (
+              (lstatSync(path).isDirectory() &&
+                currentFilePath.includes(path)) ||
+              currentFilePath === path
+            ) {
+              return true;
+            }
+          }
+        });
+
+        if (isFileIgnored) {
+          return resolve(null);
+        }
+      }
+
       const formatCommandBinPath = getBinPath(this.getExecutablePath());
       const codeContent = document.getText();
 
@@ -232,11 +260,6 @@ export class NWScriptDocumentFormattingEditProvider
         offset = Buffer.byteLength(codeContent.substr(0, offset), "utf8");
 
         formatArgs.push(`-offset=${offset}`, `-length=${length}`);
-      }
-
-      let workingPath = this.getWorkspaceRootPath();
-      if (!document.isUntitled || !workingPath) {
-        workingPath = dirname(document.fileName);
       }
 
       let stdout = "";

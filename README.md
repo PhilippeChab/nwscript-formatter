@@ -45,7 +45,7 @@ Some examples:
 
 ### Formatter style
 
-Change your vscode settings, you can specify `clang-format` [rules](https://clang.llvm.org/docs/ClangFormatStyleOptions.html):
+In your vscode settings, you can specify `clang-format` [rules](https://clang.llvm.org/docs/ClangFormatStyleOptions.html):
 
 ```
 {
