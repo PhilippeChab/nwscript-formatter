@@ -3,7 +3,7 @@ import type { ExtensionContext } from "vscode";
 
 import NWScriptDocumentFormattingEditProvider from "./NWScriptFormatter";
 
-export function activate(ctx: ExtensionContext): void {
+export function activate(ctx: ExtensionContext) {
   const formatter = new NWScriptDocumentFormattingEditProvider();
   const mode = { language: "nwscript", scheme: "file" };
 
