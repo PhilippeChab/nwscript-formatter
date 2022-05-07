@@ -63,8 +63,7 @@ In your vscode settings, you can specify `clang-format` [rules](https://clang.ll
       MaxEmptyLinesToKeep: 1,
       TabWidth: 4,
       IndentWidth: 4,
-      UseTab: "Always",
-      ignoredPaths: [],
+      UseTab: "Always"
     }
 }
 ```
