@@ -8,7 +8,7 @@
     "url": "https://github.com/PhilippeChab/nwscript-formatter"
   },
   "license": "MIT",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "publisher": "PhilippeChab",
   "engines": {
     "vscode": "^1.66.0"
@@ -62,7 +62,7 @@
         "nwscript-formatter.ignoredPaths": {
           "type": "array",
           "default": [],
-          "description": "Specific relative paths to ignore. May be module or file paths.",
+          "description": "Glob patterns to ignore.",
           "items": {
             "type": "string"
           }
@@ -78,11 +78,13 @@
     "lint": "eslint src --ext ts"
   },
   "dependencies": {
+    "async": "^3.2.3",
     "global": "^4.4.0",
     "sax": "^1.2.4",
     "vsce": "^2.7.0"
   },
   "devDependencies": {
+    "@types/async": "^3.2.13",
     "@types/node": "14.x",
     "@types/sax": "^1.2.4",
     "@types/vscode": "^1.66.0",

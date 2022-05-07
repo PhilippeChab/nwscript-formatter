@@ -19,20 +19,20 @@ const outputChannel = window.createOutputChannel("NWScript-Formatter");
 export default class NWScriptDocumentFormattingEditProvider
   implements DocumentFormattingEditProvider, DocumentRangeFormattingEditProvider
 {
-  public provideDocumentFormattingEdits(
+  public async provideDocumentFormattingEdits(
     document: TextDocument,
     options: FormattingOptions,
     token: CancellationToken
-  ): Thenable<TextEdit[] | null> {
+  ): Promise<TextEdit[] | null> {
     return this.doFormatDocument(document, null, options, token);
   }
 
-  public provideDocumentRangeFormattingEdits(
+  public async provideDocumentRangeFormattingEdits(
     document: TextDocument,
     range: Range,
     options: FormattingOptions,
     token: CancellationToken
-  ): Thenable<TextEdit[] | null> {
+  ): Promise<TextEdit[] | null> {
     return this.doFormatDocument(document, range, options, token);
   }
 
@@ -96,90 +96,86 @@ export default class NWScriptDocumentFormattingEditProvider
     }
   }
 
-  private getEdits(document: TextDocument, xml: string, codeContent: string): Thenable<TextEdit[] | null> {
-    return new Promise((resolve, reject) => {
-      const parser = sax.parser(true, {
-        trim: false,
-        normalize: false,
-      });
-
-      const edits: TextEdit[] = [];
-      let currentEdit: { length: number; offset: number; text: string } | null;
-
-      parser.onerror = (err) => {
-        reject(err.message);
-      };
-
-      parser.onopentag = (tag) => {
-        if (currentEdit) {
-          reject("Malformed output.");
-        }
-
-        switch (tag.name) {
-          case "replacements":
-            return;
-
-          case "replacement":
-            currentEdit = {
-              length: parseInt(tag.attributes["length"].toString()),
-              offset: parseInt(tag.attributes["offset"].toString()),
-              text: "",
-            };
-            byteToOffset(codeContent, currentEdit);
-            break;
-
-          default:
-            reject(`Unexpected tag ${tag.name}.`);
-        }
-      };
-
-      parser.ontext = (text) => {
-        if (!currentEdit) {
-          return;
-        }
-
-        currentEdit.text = text;
-      };
-
-      parser.onclosetag = (tagName) => {
-        if (!currentEdit) {
-          return;
-        }
-
-        const start = document.positionAt(currentEdit.offset);
-        const end = document.positionAt(currentEdit.offset + currentEdit.length);
-
-        const editRange = new Range(start, end);
-
-        edits.push(new TextEdit(editRange, currentEdit.text));
-        currentEdit = null;
-      };
-
-      parser.onend = () => {
-        resolve(edits);
-      };
-
-      parser.write(xml);
-      parser.end();
+  private getEdits(document: TextDocument, xml: string, codeContent: string): TextEdit[] | null {
+    const parser = sax.parser(true, {
+      trim: false,
+      normalize: false,
     });
+
+    const edits: TextEdit[] = [];
+    let currentEdit: { length: number; offset: number; text: string } | null;
+
+    parser.onerror = (err) => {
+      throw err;
+    };
+
+    parser.onopentag = (tag) => {
+      if (currentEdit) {
+        throw new Error("Malformed output.");
+      }
+
+      switch (tag.name) {
+        case "replacements":
+          return;
+
+        case "replacement":
+          currentEdit = {
+            length: parseInt(tag.attributes["length"].toString()),
+            offset: parseInt(tag.attributes["offset"].toString()),
+            text: "",
+          };
+          byteToOffset(codeContent, currentEdit);
+          break;
+
+        default:
+          throw new Error(`Unexpected tag ${tag.name}.`);
+      }
+    };
+
+    parser.ontext = (text) => {
+      if (!currentEdit) {
+        return;
+      }
+
+      currentEdit.text = text;
+    };
+
+    parser.onclosetag = () => {
+      if (!currentEdit) {
+        return;
+      }
+
+      const start = document.positionAt(currentEdit.offset);
+      const end = document.positionAt(currentEdit.offset + currentEdit.length);
+
+      const editRange = new Range(start, end);
+
+      edits.push(new TextEdit(editRange, currentEdit.text));
+      currentEdit = null;
+    };
+
+    parser.write(xml);
+    parser.end();
+
+    return edits;
   }
 
-  private doFormatDocument(
+  private async doFormatDocument(
     document: TextDocument,
     range: Range | null,
-    options: FormattingOptions | null,
+    _: FormattingOptions | null,
     token: CancellationToken | null
-  ): Thenable<TextEdit[] | null> {
-    return new Promise((resolve, reject) => {
+  ): Promise<TextEdit[] | null> {
+    return new Promise(async (resolve, reject) => {
       if (!workspace.getConfiguration("nwscript-formatter").get<boolean>("enabled")) {
-        return resolve(null);
+        resolve(null);
       }
 
       const workspaceRootPath = this.getWorkspaceRootPath();
       const workingPath = !document.isUntitled || !workspaceRootPath ? dirname(document.fileName) : workspaceRootPath;
 
-      if (isIgnoredFile(workspaceRootPath, document)) {
-        return resolve(null);
+      if (await isIgnoredFile(document)) {
+        resolve(null);
       }
 
       const formatCommandBinPath = clangPath(this.getExecutablePath());
@@ -214,9 +210,9 @@ export default class NWScriptDocumentFormattingEditProvider
           window.showInformationMessage(
             `The ${formatCommandBinPath} command is not available.  Please check your nwscript-formatter.executable setting and ensure clang executable is installed.`
           );
-          return resolve(null);
+          resolve(null);
         }
-        return reject(err);
+        reject(err);
       });
 
       child.on("close", (code) => {
@@ -225,14 +221,14 @@ export default class NWScriptDocumentFormattingEditProvider
             outputChannel.show();
             outputChannel.clear();
             outputChannel.appendLine(stderr);
-            return reject("Cannot format due to syntax errors.");
+            reject("Cannot format due to syntax errors.");
           }
 
           if (code !== 0) {
-            return reject();
+            reject();
           }
 
-          return resolve(this.getEdits(document, stdout, codeContent));
+          resolve(this.getEdits(document, stdout, codeContent));
         } catch (e) {
           reject(e);
         }

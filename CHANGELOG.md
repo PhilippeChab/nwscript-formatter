@@ -16,4 +16,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 **_BREAKING CHANGE_**
 
-- The setting style is now an object instead of a stringified object.
+- The setting `style` is now an object instead of a stringified object.
+
+## [1.3.0]
+
+**_BREAKING CHANGE_**
+
+- The setting `ignorePaths` now uses glob patterns.

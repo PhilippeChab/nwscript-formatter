@@ -75,4 +75,4 @@ In your vscode settings, you can specify `clang-format` [rules](https://clang.ll
 
 ## Credits
 
-The initial code structure comes from https://github.com/xaverh/vscode-clang-format-provider.
+The initial code base and structure comes from https://github.com/xaverh/vscode-clang-format-provider.
