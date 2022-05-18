@@ -14,6 +14,6 @@ export const defaultConfiguration = {
     TabWidth: 4,
     IndentWidth: 4,
     UseTab: "Always",
-    ignoredPaths: [],
   },
+  ignoredPaths: [],
 };

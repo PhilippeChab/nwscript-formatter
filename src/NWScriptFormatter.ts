@@ -96,7 +96,7 @@ export default class NWScriptDocumentFormattingEditProvider
     }
   }
 
-  private getEdits(document: TextDocument, xml: string, codeContent: string): TextEdit[] | null {
+  private getEdits(document: TextDocument, xml: string, codeContent: string) {
     const parser = sax.parser(true, {
       trim: false,
       normalize: false,
@@ -225,7 +225,7 @@ export default class NWScriptDocumentFormattingEditProvider
           }
 
           if (code !== 0) {
-            reject();
+            reject("Unknown error.");
           }
 
           resolve(this.getEdits(document, stdout, codeContent));
