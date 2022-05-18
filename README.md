@@ -5,7 +5,7 @@ NWScript-Formatter is a Visual Studio Code extension to easily format NWScript c
 ## Dependencies
 
 - clang-format version 3.8 or higher.
-- [nwscript](https://marketplace.visualstudio.com/items?itemName=glorwinger.nwscript) language syntax for vscode.
+- [nwscript](https://marketplace.visualstudio.com/items?itemName=PhilippeChab.nwscript-ee-language-server) language syntax for vscode.
 
 ## Usage
 
